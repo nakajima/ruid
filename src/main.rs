@@ -22,7 +22,7 @@ impl Default for Simulation {
         Self {
             dot_positions: vec![],
             dot_velocities: vec![],
-            dot_radius: 60.,
+            dot_radius: 16.,
             width: 0.,
             height: 0.,
             gravity: 1200.,

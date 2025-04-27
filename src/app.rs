@@ -48,10 +48,13 @@ impl<'a> ApplicationHandler for App<'a> {
         self.simulation.width = window_size.width as f32;
         self.simulation.height = window_size.height as f32;
 
-        self.simulation.add_dot(
-            Vector2D::from_array([100., 100.]),
-            Vector2D::from_array([0., 0.]),
-        );
+        for i in 0..100 {
+            self.simulation.add_dot(
+                rand::random::<Vector2D>()
+                    * Vector2D::from_array([window_size.width as f32, window_size.height as f32]),
+                Vector2D::from_array([0., 0.]),
+            );
+        }
 
         self.last_update_instant = Instant::now();
         self.window.as_ref().unwrap().request_redraw();
