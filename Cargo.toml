@@ -10,7 +10,7 @@ crate-type = ["cdylib", "rlib"]
 fontdue = { version = "0.9.3", features = ["parallel"] }
 js-sys = "0.3.77"
 log = "0.4.27"
-pixels = { path = "../forks/pixels" }
+pixels = { git = "https://github.com/nakajima/pixels" }
 rand = { version = "0.9.1", features = [
   "std",
   "std_rng",

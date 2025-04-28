@@ -1273,6 +1273,7 @@ checksum = "3b3cff922bd51709b605d9ead9aa71031d81447142d828eb4a6eba76fe619f9b"
 [[package]]
 name = "pixels"
 version = "0.15.0"
+source = "git+https://github.com/nakajima/pixels#07c3f95be912b58d758b2f02d115d9f847eae4ba"
 dependencies = [
  "bytemuck",
  "pollster",
