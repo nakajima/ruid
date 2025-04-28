@@ -1,13 +1,12 @@
 use rayon::prelude::*;
 use std::f32::consts::PI;
-use std::thread::available_parallelism;
 
 use crate::vectors::Vector2D;
 use crate::vectors::VectorDirecitons;
 
 pub const INITIAL_DOT_COUNT: usize = 10000;
 pub const INITIAL_GRAVITY: f32 = 100.; // Adjusted gravity might be needed
-pub const INITIAL_DOT_RADIUS: f32 = 4.0;
+pub const INITIAL_DOT_RADIUS: f32 = 2.0;
 const SMOOTHING_RADIUS: f32 = 16.0;
 
 // Choose cell size based on smoothing radius
@@ -187,7 +186,7 @@ impl Simulation {
         let h = self.height;
         let r = self.dot_radius;
         // let dt = Vector2D::splat(time_delta); // USE actual time delta
-        let dt = Vector2D::splat(1.0 / 48.0);
+        let dt = Vector2D::splat(1.0 / 56.0);
         self.dot_positions
             .par_iter_mut()
             .zip(self.dot_velocities.par_iter_mut())
@@ -307,6 +306,11 @@ impl Simulation {
 
     pub fn draw(&self, frame: &mut [u8]) {
         // --- Draw Density Field ---
+        #[cfg(target_arch = "wasm32")]
+        for chunk in frame.chunks_exact_mut(4) {
+            chunk.copy_from_slice(&self.background_color)
+        }
+        #[cfg(not(target_arch = "wasm32"))]
         frame
             .par_chunks_mut(self.width as usize * BYTES_PER_PIXEL)
             .enumerate()

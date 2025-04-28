@@ -3,9 +3,45 @@ name = "ruid"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
-fontdue = "0.9.3"
-pixels = "0.15.0"
-rand = { version = "0.9.1", features = ["simd_support"] }
-rayon = "1.10.0"
+fontdue = { version = "0.9.3", features = ["parallel"] }
+js-sys = "0.3.77"
+log = "0.4.27"
+pixels = { path = "../forks/pixels" }
+rand = { version = "0.9.1", features = [
+  "std",
+  "std_rng",
+  "small_rng",
+  "simd_support",
+  # "thread_rng",
+  "nightly",
+], default-features = false }
+rayon = { version = "1.10.0" }
 winit = "0.30.9"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_error_panic_hook = { version = "0.1.7" }
+console_log = { version = "1.0.0" }
+wasm-bindgen-futures = { version = "0.4.50" }
+web-sys = { version = "0.3.77", features = [
+  "Window",
+  "Document",
+  "HtmlElement",
+  "GpuTextureFormat",
+  "console",
+  "HtmlBodyElement",
+  "Element",
+  "HtmlCanvasElement",
+  "GpuAdapter",
+  "GpuShaderModule",
+  "gpu_shader_stage",
+] }
+web-time = "1.1.0"
+wasm-bindgen = { version = "0.2.100" }
+wgpu = { git = "https://github.com/gfx-rs/wgpu", branch = "trunk" }
+
+[[example]]
+name = "main"

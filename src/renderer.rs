@@ -1,9 +1,16 @@
 use std::{
+    array,
     sync::{Arc, LazyLock},
-    time::Instant,
 };
 
-use pixels::{Pixels, SurfaceTexture};
+use log::error;
+#[cfg(not(target_arch = "wasm32"))]
+use std::time::Instant;
+#[cfg(target_arch = "wasm32")]
+use web_time::Instant;
+
+use pixels::{Pixels, SurfaceTexture, wgpu};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use winit::{
     application::ApplicationHandler,
     event::WindowEvent,
@@ -23,114 +30,100 @@ static FONT: LazyLock<fontdue::Font> = LazyLock::new(|| {
 });
 
 pub struct Renderer<'a> {
-    window: Option<Arc<Window>>,
     pixels: Option<Pixels<'a>>,
     simulation: Simulation,
     last_update_instant: Instant,
     fps: f32,
     frame_times: Vec<f32>,
+    rng: rand::rngs::SmallRng,
 }
 
 impl<'a> Default for Renderer<'a> {
     fn default() -> Self {
         Self {
-            window: None,
             pixels: None,
             simulation: Simulation::default(),
             last_update_instant: Instant::now(),
             fps: 0.0,
             frame_times: Vec::with_capacity(100),
+            rng: SmallRng::from_seed(array::repeat(1)),
         }
     }
 }
 
-impl<'a> ApplicationHandler for Renderer<'a> {
-    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        let window = Arc::new(
-            event_loop
-                .create_window(Window::default_attributes())
-                .unwrap(),
-        );
-
-        let window_size = window.inner_size();
-        let surface_texture =
-            SurfaceTexture::new(window_size.width, window_size.height, Arc::clone(&window));
-
-        // // Initialize pixels rendering
-        let mut pixels =
-            Pixels::new(window_size.width, window_size.height, surface_texture).unwrap();
+impl<'a> Renderer<'a> {
+    pub fn init<W: wgpu::WindowHandle + 'a>(
+        &mut self,
+        width: u32,
+        height: u32,
+        window: Arc<W>,
+        mut pixels: Pixels<'a>,
+    ) {
         pixels.enable_vsync(false);
 
         self.pixels = Some(pixels);
-        self.window = Some(window);
-        self.simulation.width = window_size.width as f32;
-        self.simulation.height = window_size.height as f32;
+        self.simulation.width = width as f32;
+        self.simulation.height = height as f32;
 
         for _ in 0..INITIAL_DOT_COUNT {
             self.simulation.add_dot(
-                rand::random::<Vector2D>()
-                    * Vector2D::from_array([window_size.width as f32, window_size.height as f32]),
+                self.rng.random::<Vector2D>() * Vector2D::from_array([width as f32, height as f32]),
                 Vector2D::from_array([0., 0.]),
             );
         }
 
         self.last_update_instant = Instant::now();
-        self.window.as_ref().unwrap().request_redraw();
     }
 
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
-        match event {
-            WindowEvent::Resized(size) => {
-                self.pixels
-                    .as_mut()
-                    .unwrap()
-                    .resize_surface(size.width, size.height)
-                    .unwrap();
-                self.pixels
-                    .as_mut()
-                    .unwrap()
-                    .resize_buffer(size.width, size.height)
-                    .unwrap();
-                self.simulation.width = size.width as f32;
-                self.simulation.height = size.height as f32;
-                self.window.as_ref().unwrap().request_redraw();
-            }
-            WindowEvent::CloseRequested => {
-                println!("The close button was pressed; stopping");
-                event_loop.exit();
-            }
-            WindowEvent::RedrawRequested => {
-                // Notify that you're about to draw.
-                self.window.as_ref().unwrap().pre_present_notify();
+    pub fn resize(&mut self, width: u32, height: u32) {
+        let pixels = match self.pixels.as_mut() {
+            Some(pixels) => pixels,
+            None => return,
+        };
 
-                let now = Instant::now();
-                let time_delta = now.duration_since(self.last_update_instant).as_secs_f32();
-                self.simulation.update(time_delta);
-                self.update_fps(time_delta);
-
-                let pixels = self.pixels.as_mut().unwrap();
-                let frame = pixels.frame_mut();
-                self.simulation.draw(frame);
-
-                // Draw FPS counter
-                let fps_text = format!("FPS: {:.1}", self.fps);
-
-                Self::draw_text(
-                    frame,
-                    &fps_text,
-                    self.simulation.width as usize,
-                    self.simulation.height as usize,
-                    10,
-                    20,
-                );
-
-                // Render the frame to the window
-                pixels.render().unwrap();
-                self.window.as_ref().unwrap().request_redraw();
-                self.last_update_instant = now;
-            }
-            _ => (),
+        match pixels.resize_surface(width, height) {
+            Ok(()) => {}
+            Err(e) => error!("Error resizing surface: {:?}", e),
         }
+
+        match pixels.resize_buffer(width, height) {
+            Ok(()) => {}
+            Err(e) => error!("Error resizing buffer: {:?}", e),
+        }
+
+        self.simulation.width = width as f32;
+        self.simulation.height = height as f32;
+    }
+
+    pub fn update_and_draw(&mut self) {
+        let now = Instant::now();
+        let time_delta = now.duration_since(self.last_update_instant).as_secs_f32();
+        self.simulation.update(time_delta);
+        self.update_fps(time_delta);
+
+        let pixels = match self.pixels.as_mut() {
+            Some(pixels) => pixels,
+            None => return,
+        };
+
+        let frame = pixels.frame_mut();
+        self.simulation.draw(frame);
+
+        // Draw FPS counter
+        let fps_text = format!("FPS: {:.1}", self.fps);
+
+        Self::draw_text(
+            frame,
+            &fps_text,
+            self.simulation.width as usize,
+            self.simulation.height as usize,
+            10,
+            20,
+        );
+
+        // Render the frame to the window
+        pixels.render().unwrap();
+        self.last_update_instant = now;
     }
 }
 
